@@ -4,7 +4,7 @@ A very simple finite difference package, whose main purpose is to explore/refine
 various best-practices related to Python packages. Finite differences are easy to code/test
 and can easily be ported to Fortran/C in order to include f2py/cython support.
 
-These are production Python routines, the emphasis is on the package building
+These are not production Python routines, the emphasis is on the package building
 process. This repo should be used as a guide for building better packages.
 
 Many of the ideas are borrowed from the template: https://github.com/nschloe/pyfoobar

@@ -57,7 +57,8 @@ finite-difference/
 |
 +-- setup.py
 ```
-For this project, `fd.py` is a carbon copy of `fd.f90`, but written in Fortran.
+For this project, `fd.f90` is a carbon copy of `fd.py` in that both provide identical
+functionality.
 
 In this case, the `setup.py` file is quite simple:
 ```
@@ -113,6 +114,75 @@ Options for the `setup` call include (mostly all strings):
    `define_macros=[('DEBUG', 1), ('COOL', None)]` is equivalent to having
    `#define DEBUG 1` and `#define COOL` at the top of every source file.
 
+### Setup Configuration
+Sometimes it is useful to provide system-dependent customization to the user without
+requiring changes to the `setup.py` file, e.g., compiler-based choices including
+library directories and architecture-specific optimization flags. This is where
+configuration files come in handy. Installers can override some defaults in the
+`setup.py` by editing the config file. The configuration file will be called `fdiff.cfg`
+and might look like:
+```
+[compiler-info]
+
+# build project with Fortran support
+INCLUDE_FORTRAN = True
+
+# specify the compiler: gcc, intel, nvhpc
+F90_COMPILER = gcc
+
+# set custom flags, such as architecture optimizations
+EXTRA_COMPILE_FLAGS = -O3
+
+# space-separated list of libraries to use, without the leading "-l"
+LIBRARIES = mkl_intel_ilp64 mkl_sequential mkl_core
+
+# space-separated list of library directories to use
+LIBRARY_DIRS = $(MKLROOT)/lib/intel64
+
+# space-separated list of include directories to use
+INCLUDE_DIRS = $(MKLROOT)/include
+```
+To use this information within the `setup.py` file, we must read the various values
+using:
+```
+from configparser import ConfigParser
+
+# build the configure object and parse the input file
+config = ConfigParser()
+config.read("fdiff.cfg")
+
+# extract the variables
+section = "compiler-info"
+build_f90 = config.getboolean(section, "INCLUDE_FORTRAN")   # read a boolean
+compiler  = config.get(section, "F90_COMPILER").lower()     # read/process a string
+flags     = config.get(section, "EXTRA_COMPILE_FLAGS")      # read string
+libraries = config.get(section, "LIBRARIES").split()        # read/process a string
+lib_dirs  = config.get(section, "LIBRARY_DIRS").split()     # read/process a string
+includes  = config.get(section, "INCLUDE_DIRS").split()     # read/process a string
+```
+Now these variables can be passed on to the `Extension` objects and the `setup`
+function call.
+
+Configure files can also be used to document what options were ultimately used to
+build the project.
+```
+used = ConfigParser()
+section = "installed-options"
+
+newconfig.set(section, "python_version", <py_version>)
+newconfig.set(section, "compiler", <compiler_name>)
+newconfig.set(section, "compiler_version", <compiler_version>)
+newconfig.set(section, "compiler_flags", <compiler_flags>)
+
+newconfig.set(section, "build_dir", <build_directory>)
+newconfig.set(section, "build_time", <build_time>)
+newconfig.set(section, "build_machine", <build_machine>)
+
+with open(output_file, "w") as configfile:
+    newconfig.write(configfile)    # write the installed values
+    config.write(configfile)       # write the originally requested values
+```
+
 ## Installing
 Use `pip` to install your package:
 ```
@@ -155,10 +225,10 @@ python3 -m pip uninstall <no-longer-needed-dependency-1>
 python3 -m pip uninstall <no-longer-needed-dependency-2>
 ```
 
-## Testing
+# Testing
 This project will be using `pytest` to conduct the unit tests (covered somewhere else,
 for now).
 
-## Documentation
+# Documentation
 This is best done using Sphinx (covered somewhere else, for now).
 
