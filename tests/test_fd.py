@@ -1,10 +1,14 @@
+import pytest
 import numpy as np
 import finite_difference.fd as pFD
 import finite_difference.fortran as fFD
 
+using_pytest = True
+
 def test_fd2():
+    name = "FD2"
     n = 256
-    tol = 0.1 # expect error ~= 0.008 when n=256
+    tol = 0.01 # expect error ~= 0.008 when n=256
 
     # define grid, function and true derivative
     x = np.linspace(-1, 1, num=n, endpoint=True)
@@ -21,9 +25,14 @@ def test_fd2():
     f90_err = np.max(np.abs(true - dfdx_f90))
 
     passing = (py_err < tol) and (f90_err < tol)
-    print(passing)
+
+    if (using_pytest):
+        assert passing
+    else:
+        print("{} --- {}".format(name, passing))
 
 def test_convergence_fd2():
+    name = "FD2 convergence"
     Nref = 64
     N = [128, 256, 512]
 
@@ -70,9 +79,14 @@ def test_convergence_fd2():
 
     tol = 0.04
     passing = np.allclose(pnorm, 1, atol=tol) and np.allclose(fnorm, 1, atol=tol)
-    print(passing)
+
+    if (using_pytest):
+        assert passing
+    else:
+        print("{} --- {}".format(name, passing))
 
 if __name__ == "__main__":
+    using_pytest = False
     test_fd2()
     test_convergence_fd2()
 

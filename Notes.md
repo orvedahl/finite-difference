@@ -188,6 +188,16 @@ with open(output_file, "w") as configfile:
     config.write(configfile)       # write the originally requested values
 ```
 
+### Some Pitfalls
+Specifying the compiler used by `f2py` in the configuration file leads to some subtle
+difficulties. The default is GCC, but Intel is also supported. The only trick is that
+the compiler you want to use should be the first one found in the `PATH`.
+
+Currently, the NVIDIA HPC compiler does not work. The most robust way to change the
+compiler that `f2py` uses is by changing the command line options using the
+`sys.argv.extend(...)` function within the `setup.py` file. Using the `f2py_options`
+argument does not work.
+
 ## Installing
 Use `pip` to install your package:
 ```
@@ -231,8 +241,154 @@ python3 -m pip uninstall <no-longer-needed-dependency-2>
 ```
 
 # Testing
-This project will be using `pytest` to conduct the unit tests (covered somewhere else,
-for now).
+Testing should make use of assertions through the `assert` statement. Assertions should
+only be used to track down bugs during development; the user should never encounter them.
+As the assertions take up time and resources, they should be disabled for production code.
+
+The following statement:
+```
+if __debug__:
+    if not expression:
+        raise AssertionError(assertion_message)
+```
+is functionally equivalent to
+```
+assert expression, assertion_message
+```
+The value of `__debug__` depends on the mode in which Python is run. Normal mode uses
+`__debug__ = True`, but production code should ideally use `__debug__ = False`.
+
+One way to disable the assertions is to invoke python using
+```
+python -O ...
+```
+where the `-O` flag is a capital letter O, not zero. A second way to disable assertions
+is to set the environment variable `PYTHONOPTIMIZE` to a non-empty string, such as
+```
+PYTHONOPTIMIZE=true
+```
+
+## Pytest
+A great tool to perform testing is `pytest`. Often times multiple tests will make use
+of the same test data. Instead of each individual test regenerating the test data,
+a fixture can be used to hold that data where it can be accessed by multiple tests.
+```
+def test_is_prime():
+    x = [1,2,3,4,5,6]
+    primes = [is_prime(i) for i in x]
+    assert primes == [False, True, True, False, True, False]
+
+def test_is_even():
+    x = [1,2,3,4,5,6]
+    evens = [is_even(i) for i in x]
+    assert primes == [False, True, False, True, False, True]
+```
+with fixtures, these would become
+```
+import pytest
+
+@pytest.fixture
+def numbers():
+    return [1,2,3,4,5,6]
+
+def test_is_prime(numbers):
+    primes = [is_prime(i) for i in x]
+    assert primes == [False, True, True, False, True, False]
+
+def test_is_even(numbers):
+    evens = [is_even(i) for i in x]
+    assert primes == [False, True, False, True, False, True]
+```
+
+Fixtures can depend on other fixtures, which provides modularity and therefore versatility.
+`pytest` will search for a file named `conftest.py` in whatever directory it is running.
+This file is a great spot to store generic and frequently used fixtures. The `monkeypatch`
+fixture can be used to replace values and behaviors, such as preventing real network calls
+when testing.
+
+Various tests can be grouped together to avoid running all tests when a single subset
+of the tests is really wanted. `pytest` does this by marking a test as a particular
+category. Use the `--strict-markers` flag when running `pytest`, this will ensure that all
+marks have been registered in the `pytest` configuration. A very useful mark is
+`parametrize`. It allows you to test multiple conditions with a single test definition.
+For example,
+```
+def test_is_palindrome_empty_string():
+    assert is_palindrome("")
+
+def test_is_palindrome_single():
+    assert is_palindrome("a")
+
+def test_is_palindrome_mixed_case():
+    assert is_palindrome("Bob")
+
+def test_is_palindrome_spaces():
+    assert is_palindrome("Never odd or even")
+
+def test_is_palindrome_empty_punctuation():
+    assert is_palindrome("Do geese see God?")
+
+def test_is_palindrome_not_palindrome():
+    assert is_palindrome("abc")
+
+def test_is_palindrome_not_quite():
+    assert is_palindrome("abab")
+```
+all have the form:
+```
+def test_is_palindrome_<some situation>():
+    assert is_palindrome("<some string>")
+```
+The `parametrize` mark allows these to be collapsed significantly:
+```
+@pytest.mark.parametrize("palindrome", [
+    "",
+    "a",
+    "Bob",
+    "Never odd or even",
+    "Do geese see God?",
+])
+def test_is_palindrome(palindrome):
+    assert is_palindrome(palindrome)
+
+@pytest.mark.parametrize("non_palindrome", [
+    "abc",
+    "abab",
+])
+def test_is_palindrome_no(non_palindrome):
+    assert not is_palindrome(non_palindrome)
+```
+The first argument is a comma separated string of parameter names. The second argument
+is a list of tuples or single values that represent the parameter value(s).
+The above cases could be combined into a single test using:
+```
+@pytest.mark.parametrize("maybe_palindrome, expected_result", [
+    ("", True),
+    ("a", True),
+    ("Bob", True),
+    ("Never odd or even", True),
+    ("Do geese see God?", True),
+    ("abc", False),
+    ("abab", False),
+])
+def test_is_palindrome(maybe_palindrome, expected_result):
+    assert is_palindrome(maybe_palindrome) == expected_result
+```
+This shortened the code, but might make the test a little more opaque; be clear about
+what the test is testing.
+
+The `--durations=n` option to `pytest` can provide some duration reporting of the results;
+`n` is an integer telling `pytest` to report on the `n` slowest results.
+
+The `pytest-cov` plugin integrates the `coverage` package to see the test coverage report.
+
+### Running Pytest
+To actually run the test suite:
+```
+cd tests/
+pytest [options]
+```
+
 
 # Documentation
 This is best done using Sphinx (covered somewhere else, for now).
