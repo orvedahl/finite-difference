@@ -382,12 +382,29 @@ The `--durations=n` option to `pytest` can provide some duration reporting of th
 
 The `pytest-cov` plugin integrates the `coverage` package to see the test coverage report.
 
+Tests can be used in a class as well:
+```
+class TestClass:
+    def test_one(self): # should pass
+        x = "this"
+        assert "h" in x
+
+    def test_two(self): # should fail
+        x = "hello"
+        assert hasattr(x, "check")
+```
+The name of the class should start with `Test` for it to be automatically found/run.
+
 ### Running Pytest
 To actually run the test suite:
 ```
 cd tests/
 pytest [options]
 ```
+By default, `pytest` will run all files of the form `test_*.py` or `*_test.py` in the
+current directory and its subdirectories.
+
+### Plugins
 
 
 # Documentation
