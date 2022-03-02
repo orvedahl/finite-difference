@@ -98,7 +98,8 @@ Options for the `setup` call include (mostly all strings):
  * `long_description` is a more verbose description, most often this holds the contents
     of the `README` file
  * `license` describes the type of licences, where the actual licence contents usually
-    appear in the `LICENSE` file
+    appear in the `LICENSE` file. [Choose a license](https://choosealicense.com) can
+    help you determine the correct one for you.
  * `version` is a numerical version number, usually formatted: `major.minor.micro`
  * `packages` is a list of packages to use, basically the directories that contain
     `__init__.py` files. The `setuptools` package provides a nice function for finding
@@ -127,20 +128,24 @@ and might look like:
 # build project with Fortran support
 INCLUDE_FORTRAN = True
 
-# specify the compiler: gcc, intel, nvhpc
-F90_COMPILER = gcc
+# specify the compiler vendor that f2py should use. to see available ones:
+#     f2py - --help-fcompiler
+# common options include:
+#     gnu95      GNU Gfortran
+#     intelem    Intel
+F90_COMPILER = intelem
 
 # set custom flags, such as architecture optimizations
-EXTRA_COMPILE_FLAGS = -O3
+EXTRA_COMPILE_FLAGS = -O3 -xavx2
 
 # space-separated list of libraries to use, without the leading "-l"
 LIBRARIES = mkl_intel_ilp64 mkl_sequential mkl_core
 
 # space-separated list of library directories to use
-LIBRARY_DIRS = $(MKLROOT)/lib/intel64
+LIBRARY_DIRS = ${MKLROOT}/lib/intel64
 
 # space-separated list of include directories to use
-INCLUDE_DIRS = $(MKLROOT)/include
+INCLUDE_DIRS = ${MKLROOT}/include
 ```
 To use this information within the `setup.py` file, we must read the various values
 using:
@@ -153,12 +158,12 @@ config.read("fdiff.cfg")
 
 # extract the variables
 section = "compiler-info"
-build_f90 = config.getboolean(section, "INCLUDE_FORTRAN")   # read a boolean
-compiler  = config.get(section, "F90_COMPILER").lower()     # read/process a string
-flags     = config.get(section, "EXTRA_COMPILE_FLAGS")      # read string
-libraries = config.get(section, "LIBRARIES").split()        # read/process a string
-lib_dirs  = config.get(section, "LIBRARY_DIRS").split()     # read/process a string
-includes  = config.get(section, "INCLUDE_DIRS").split()     # read/process a string
+build_f90 = config.getboolean(section, "INCLUDE_FORTRAN")       # read a boolean
+compiler  = config.get(section, "F90_COMPILER")                 # read/process a string
+flags     = config.get(section, "EXTRA_COMPILE_FLAGS").split()  # read/process a string
+libraries = config.get(section, "LIBRARIES").split()            # read/process a string
+lib_dirs  = config.get(section, "LIBRARY_DIRS").split()         # read/process a string
+includes  = config.get(section, "INCLUDE_DIRS").split()         # read/process a string
 ```
 Now these variables can be passed on to the `Extension` objects and the `setup`
 function call.
