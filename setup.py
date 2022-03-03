@@ -73,6 +73,7 @@ options['py_modules'] = [osp.splitext(osp.basename(p))[0] for p in glob("src/**/
 options['python_requires'] = '>=3.6'
 options['install_requires'] = ['docopt',
                                'numpy>=1.19',
+                               'tox',
                                'pytest',
                                'pytest-cov',
                                'pytest-benchmark']

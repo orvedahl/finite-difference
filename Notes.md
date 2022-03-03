@@ -35,8 +35,8 @@ well as running the individual unit tests. There are most likely other advantage
 are not listed here.
 
 ## Setup Script
-This script should be as simple as possible. This example is based on
-a post from [stackoverflow](https://stackoverflow.com/questions/64950460/link-f2py-generated-so-file-in-a-python-package-using-setuptools),
+This script should be as simple as possible. This example is based on a post from
+[stackoverflow](https://stackoverflow.com/questions/64950460/link-f2py-generated-so-file-in-a-python-package-using-setuptools),
 but the tree and files are updated to reflect this project:
 ```
 finite-difference/
@@ -213,7 +213,8 @@ cd PACKAGE_HOME
 
 python3 -m pip install --user --upgrade --no-deps --force-reinstall .
 ```
-which will reinstall the local package, but will not reinstall the dependencies (`--no-deps`).
+which will reinstall the local package, but will not reinstall the dependencies
+(`--no-deps`).
 
 ### Uninstalling
 Uninstalling packages can be a little tricky. `pip` can install dependencies that are used
@@ -221,14 +222,15 @@ by other packages. Using the `show` command will display information of the pack
 ```
 python3 -m pip show finite_difference
 ```
-The last two lines, `Requires` and `Required-by`, show the dependencies of this project and
-the other packages that depend on this project. If no other package depends on this project,
-the project can safely be removed. Each element listed in `Requires` should also be removed,
-provided it is not required by other packages. The `show` command can help determine this
-and the `uninstall` command can be applied to each element in `Requires` that you wish to
-remove.
+The last two lines, `Requires` and `Required-by`, show the dependencies of this project
+and the other packages that depend on this project. If no other package depends on this
+project, the project can safely be removed. Each element listed in `Requires` should also
+be removed, provided it is not required by other packages. The `show` command can help
+determine this and the `uninstall` command can be applied to each element in `Requires`
+that you wish to remove.
 
-There is also some temporary data that should be removed, so a full uninstall should include:
+There is also some temporary data that should be removed, so a full uninstall should
+include:
 ```
 cd PACKAGE_HOME/
 
@@ -587,6 +589,71 @@ export PYTEST_ADDOPTS=-p no:NAME
 where `NAME` is the name of the plugin to disable.
 
 ## Tox
+Tox allows you to use multiple virtual environments to perform testing in Python, thus
+making it quite easy to:
+ * Test against multiple versions of Python
+ * Test against different dependency versions, i.e., numy, scipy, etc.
+ * Capture any run setup steps and/or commands
+ * Isolate environment variables
+ * Do all of the above across Linux/Windows/MacOS
+The tox approach presents a clean syntax which can be lifted and dropped into the CI
+configuration, greatly reducing its necessary configuration (a potentially very
+difficult task). Broadly speaking, tox will
+ * Generate a series of virtual environments
+ * Install dependencies for each environment
+ * Run the setup commands
+ * Return the results from each environment to the user
+This all takes place inside the `.tox` directory, so the repo does not become messy.
+
+### Configuration
+The magic happens in a configuration file. Tox will look in three locations,
+prioritized in the following order:
+ 1. `pyproject.toml`
+ 2. `tox.ini`
+ 3. `setup.cfg`
+Although, there is some debate about the merits of using `pyproject.toml`.
+
+The `tox.ini` file takes the form of a config file, with `[sections]` and multiple
+`key = value` entries per section:
+```
+# global settings
+[tox]
+envlist = my_env
+skipsdist = true
+
+# settings specific to the test environment, testenv is a reserved word
+[testenv]
+deps = pytest
+commands = pytest
+```
+Comments can be included with the standard `# this is a comment`, but putting
+comments on the same line as a `key = value` could lead to some hard-to-debug unwanted
+behavior. `envlist` tells tox what environments to run when the `tox` command is issued.
+In the above, the `my_env` environment will be stored in the `.tox` directory.
+`skipsdist` is set to `true` when there is no `setup.py` file, otherwise an error will
+occur. For the test environment, `deps` is the list of dependencies required to run
+the tests, in the above it's just `pytest`. The `commands` value stores the command
+that will be triggered as part of the run for a particular environment.
+
+Tox is not tied to `pytest`, it could easily be configured to run your own bash
+scripts or any arbitrary commands.
+
+To run tox, simply type `tox` from the same directory as the `tox.ini` file. It should
+build the environments and run the test commands.
+
+#### Multiple Python Versions
+Simply change the above `tox.ini` file to read:
+```
+[tox]
+envlist = py37,py27
+skipsdist = true
+
+[testenv]
+deps = pytest
+commands = pytest
+```
+and rerun `tox`, it will show the tests being run in the Python 3.7 environment and
+the same tests being run in the Python 2.7 environment.
 
 
 # Continuous Integration
