@@ -533,6 +533,8 @@ Options to `pytest`:
    will not run `TestMyClass.test_method_simple`.
  * `-m <marker>` will run all tests that have the specified marker
  * `--fixtures` will display the available fixtures
+ * `--cov=<name>` will report coverage data for the specified package name (requires
+   the `pytest-cov` package)
 
 `pytest` can also be called from within Python as
 ```
@@ -541,7 +543,21 @@ retcode = pytest.main(options)
 ```
 
 ### Plugins
-The `pytest-cov` plugin integrates the `coverage` package to see the test coverage report.
+There are multiple plugins that extend the functionality of `pytest`. Most plugins are
+automatically incorporated into `pytest`. To disable a particular plugin (for example
+in a CI server), a line can be added to the `pytest.ini` file or the environment variable
+`PYTEST_ADDOPTS` can be used:
+```
+export PYTEST_ADDOPTS=-p no:NAME
+```
+where `NAME` is the name of the plugin to disable.
+
+# Continuous Integration
+## Travis CI
+
+## Circle CI
+
+## Github Actions
 
 # Documentation
 This is best done using Sphinx (covered somewhere else, for now).
