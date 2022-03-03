@@ -269,9 +269,12 @@ PYTHONOPTIMIZE=true
 ```
 
 ## Pytest
-A great tool to perform testing is `pytest`. Often times multiple tests will make use
+A great tool to perform testing is `pytest`.
+
+### Fixtures
+Often times multiple tests will make use
 of the same test data. Instead of each individual test regenerating the test data,
-a fixture can be used to hold that data where it can be accessed by multiple tests.
+a fixture can be used to hold that data where it can be requested by multiple tests.
 ```
 def test_is_prime():
     x = [1,2,3,4,5,6]
@@ -292,26 +295,121 @@ def numbers():
     return [1,2,3,4,5,6]
 
 def test_is_prime(numbers):
-    primes = [is_prime(i) for i in x]
+    primes = [is_prime(i) for i in numbers]
     assert primes == [False, True, True, False, True, False]
 
 def test_is_even(numbers):
-    evens = [is_even(i) for i in x]
+    evens = [is_even(i) for i in numbers]
     assert primes == [False, True, False, True, False, True]
 ```
 
-Fixtures can depend on other fixtures, which provides modularity and therefore versatility.
-`pytest` will search for a file named `conftest.py` in whatever directory it is running.
-This file is a great spot to store generic and frequently used fixtures. The `monkeypatch`
-fixture can be used to replace values and behaviors, such as preventing real network calls
-when testing.
+Fixtures can request other fixtures, which provides modularity and therefore versatility.
+Test functions (and fixtures) can request multiple fixtures:
+```
+import pytest
 
-Various tests can be grouped together to avoid running all tests when a single subset
-of the tests is really wanted. `pytest` does this by marking a test as a particular
-category. Use the `--strict-markers` flag when running `pytest`, this will ensure that all
-marks have been registered in the `pytest` configuration. A very useful mark is
-`parametrize`. It allows you to test multiple conditions with a single test definition.
-For example,
+@pytest.fixture
+def numbers():
+    return [1,2,3,4,5,6]
+
+@pytest.fixture
+def prime_numbers():
+    return [False, True, True, False, True, False]
+
+def test_is_prime(numbers, prime_numbers):
+    primes = [is_prime(i) for i in numbers]
+    assert primes == prime_numbers
+```
+
+`pytest` will search for a file named `conftest.py` in whatever directory it is running.
+This file is a great spot to store generic and frequently used fixtures. Fixtures can
+be given scopes. Usually a fixture is invoked once per test function, but specifying
+the scope can reduce that to once per module. This is particularly useful if the
+fixture is expensive, such as large data or a time-consuming network connection.
+Placing the fixture within the `conftest.py` file and using:
+```
+# conftest.py
+import pytest
+import smtplib
+
+@pytest.fixture(scope="module")
+def smtp_connection():
+    return smtplib.SMTP("smtp.gmail.com", 587, timeout=5)
+
+# test_module.py
+def test_noop(smtp_connection):
+    res, msg = smtp_connection.noop()
+    assert response == 250
+```
+The fixture will be shared among all test functions that request it within the
+`test_module.py` file. Available scopes include:
+  * `function`: default scope, rebuilt for every test function
+  * `class`: fixture is destroyed after the last test in the class
+  * `module`: fixture is destroyed after all tests within a single file/module are done
+  * `package`: fixture is destroyed after the last test of the package
+  * `session`: fixture is destroyed at the end of the test session
+
+Standard fixtures use the `return` construct, it is possible to use the `yield` construct
+instead. An alternative is to use finalizers to shutdown fixtures.
+
+Fixtures can be made to run multiple times which helps write exhaustive functional tests
+for components that can be configured in multiple ways.
+```
+@pytest.fixture(scope="module", params=[1,2,3,4,5])
+def numbers(request):
+    return request.param
+
+def test_is_even(numbers):
+    assert numbers % 2 == 0
+```
+In the above example, there is only one test function, but it will be run 5 times, each
+time with a different number from the `numbers` fixture. The magic happens due to the
+special `request` fixture that provides access to the parameters. Specific parameters
+can be marked (more on this later) for special treatment using:
+```
+@pytest.fixture(params=[0, 1, pytest.param(2, marks=pytest.mark.skip))
+def data_set(request):
+    return request.param
+
+def test_data(data_set):
+    pass
+```
+The above will run using parameters `0` and `1`, but it will always skip the parameter `2`.
+
+When reporting results, a particular ID is given to each test, these IDs can be customized
+using the `ids` argument when describing the fixture.
+
+### Markers
+Markers allow you to organize and customize some of the test functions and fixtures.
+Some builtin markers include:
+  * `skip`: always skip a test function
+  * `skipif`: skip a test function if a condition is true
+  * `xfail`: produce an "expected failure" outcome if a certain condition is met
+  * `parametrize`: perform multiple calls to the same test function
+
+Marks can only be applied to tests, having no effect on fixtures.
+
+Custom marks can be registered in the `conftest.py` file using:
+```
+def pytest_configure(config):
+    config.addinivalue_line("markers",
+                            "slow: marks tests as slow (deselect with '-m \"not slow\"')")
+    config.addinivalue_line("markers", "serial")
+```
+The marks would then be used by adding `@pytest.mark.serial` or `@pytest.mark.slow`
+decorators to the appropriate test function.
+The magic here is that you are changing the ini values from within Python. This means
+you can specify the exact same information from within a `pytest.ini` configuration file.
+The first argument `"markers"` specifies what part of the ini file to adjust and the
+second argument is the actual entry. The name of the mark should appear to the left of
+the colon and anything after the `:` is an optional description.
+Use the `--strict-markers` flag when running `pytest`, this will ensure that all
+marks have been registered in the `pytest` configuration. This can also be done by
+including the line `addopts = --strict-markers` to the ini file or `pytest_configure`
+function.
+
+The `parametrize` mark is great for testing multiple conditions with a single test
+definition. For example,
 ```
 def test_is_palindrome_empty_string():
     assert is_palindrome("")
@@ -377,12 +475,33 @@ def test_is_palindrome(maybe_palindrome, expected_result):
 This shortened the code, but might make the test a little more opaque; be clear about
 what the test is testing.
 
-The `--durations=n` option to `pytest` can provide some duration reporting of the results;
-`n` is an integer telling `pytest` to report on the `n` slowest results.
+An entire matrix of parameter combinations can be run using:
+```
+@pytest.mark.parametrize("x", [0,1])
+@pytest.mark.parametrize("y", [1,3])
+def test_foo(x,y):
+    pass
+```
+This will run all four combinations of `(x,y)` pairs.
 
-The `pytest-cov` plugin integrates the `coverage` package to see the test coverage report.
+Tests can be made even more general compared to the parametrize approach by using the
+`pytest_generate_tests` hook. This can allow you to add command line arguments to
+`pytest` and generate test functions dynamically.
 
-Tests can be used in a class as well:
+### Mock Modules/Environments
+Sometimes tests need to invoke functions that change global parameters or require code that
+cannot be easily tested, such as network connections. The `monkeypatch` fixture provides a
+way to build mock environments and modules that safely change parameters. The changes are
+safely undone after the requesting test function is complete.
+
+### Running Pytest
+To actually run the test suite:
+```
+cd tests/
+pytest [options]
+```
+By default, `pytest` will run all files of the form `test_*.py` or `*_test.py` in the
+current directory and its subdirectories. Tests can be used in a class as well:
 ```
 class TestClass:
     def test_one(self): # should pass
@@ -395,17 +514,34 @@ class TestClass:
 ```
 The name of the class should start with `Test` for it to be automatically found/run.
 
-### Running Pytest
-To actually run the test suite:
+A specific test within a module can be run using
 ```
-cd tests/
-pytest [options]
+pytest test_mod.py::test_func
 ```
-By default, `pytest` will run all files of the form `test_*.py` or `*_test.py` in the
-current directory and its subdirectories.
+and a specific method within a class can be run as
+```
+pytest test_mod.py::TestClass::test_method
+```
+
+Options to `pytest`:
+ * `--durations=n` will provide some duration reporting for the `n` slowest results.
+   This can be used with `--durations-min=<m>` to show the `n` slowest results that
+   took longer than `m` seconds.
+ * `-k <string>` will run tests that contain names matching the given string. It can
+   also be of the form `-k <string> and not <key>`, for example,
+   `pytest -k "MyClass and not method"` will run `TestMyClass.test_something`, but
+   will not run `TestMyClass.test_method_simple`.
+ * `-m <marker>` will run all tests that have the specified marker
+ * `--fixtures` will display the available fixtures
+
+`pytest` can also be called from within Python as
+```
+options = ["opt-1", "opt-2", ...] # list of strings holding the options and arguments
+retcode = pytest.main(options)
+```
 
 ### Plugins
-
+The `pytest-cov` plugin integrates the `coverage` package to see the test coverage report.
 
 # Documentation
 This is best done using Sphinx (covered somewhere else, for now).
