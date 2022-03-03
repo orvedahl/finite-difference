@@ -241,6 +241,40 @@ python3 -m pip uninstall <no-longer-needed-dependency-2>
 ```
 
 # Testing
+There are three types of tests:
+ * unit : test individual modules in an isolated manner, i.e., without dependencies
+ * integration : verify that different modules work together when combined as a group
+ * functional : check that the entire application is behaving as expected
+As an example, build a phone with a battery and a sim card:
+ * unit test : check battery for life/capacity, check sim card for activation
+ * integration test : battery and sim card are combined/integrated so start the phone
+ * functional test : check phone for features from the user point of view, e.g.,
+   does it connect using the sim card, is the battery supplying adequate power.
+Usually these tests are done in order: first unit, then integration, finally functional.
+
+Unit tests are used to verify that individual functions do what they advertise; correct
+behavior, correct output with valid input, appropriate failure with invalid input. This
+is done in an isolated manner, so there are no dependencies on other modules/functions.
+
+Integration tests allow for dependencies between modules/functions in order to test
+how well they place with one another. Multiple modules are combined/integrated together
+and testing of their combined behavior is completed. There are three approaches:
+ * Big Bang
+ * Top Down
+ * Bottom Up
+In the Big Bang approach, all modules are integrated and tested as a whole at one time.
+This is good if multiple modules are ready to go at the same time, but it can be quite
+difficult to track down failures. In the Top Down approach, modules are integrated
+one by one until all modules have been integrated. The modules are added starting at the
+higher levels and moves down to the lower levels. This is very organic in that it
+mimics how things happen in the real environment. The major functionality is only
+tested at the very end. With the Bottom Up approach, modules are integrated starting
+at the lower levels and moving up towards the higher levels. This means higher-level
+issues are only identified at the end of the process.
+
+Functional testing looks at the entire application for correct behavior compared to
+expected behavior. In this way, it is more of a black-box type testing.
+
 Testing should make use of assertions through the `assert` statement. Assertions should
 only be used to track down bugs during development; the user should never encounter them.
 As the assertions take up time and resources, they should be disabled for production code.
@@ -552,12 +586,60 @@ export PYTEST_ADDOPTS=-p no:NAME
 ```
 where `NAME` is the name of the plugin to disable.
 
+## Tox
+
+
 # Continuous Integration
-## Travis CI
+Continuous Integration (CI) automates the integration of code changes from multiple
+developers into a single project. Usually, it involves buliding the code, documentation,
+running various tests and/or benchmarks. If anything fails, the proposed change will not
+be included into the main branch. Version control is integral in the CI process.
+
+## GitHub Actions
+GitHub Actions (GH Actions) offers a free tier with about 500 minutes per week using Linux
+OS, Windows will require about 2x the minutes to build and Mac OS will require about 10x
+more minutes, so Linux is by far the cheapest OS to use for testing. You can develop a
+build matrix to execute multiple builds in parallel, reducing the minutes you consume.
+There is no support for GPU enabled builds and it is only available for GitHub repos.
 
 ## Circle CI
+Circle CI has a free plan that include both public and private repos, but the free plan
+will offer a limited number of credits. Credits are used to track the amount of resources
+available to you. The credit rate is related to what OS you use
+and the size of the virtual image on which your code will run; these are similar to NASA's
+idea of the SBU, with different rates for different hardware systems. The free plan offers
+roughly 2500 credits per week (about 250 minutes on a medium Linux OS). Windows builds will
+require more credits (less minutes) and the free plan does not provide Mac OS builds.
+Circle CI does not support as many languages as Travis CI. Circle CI can be integrated with
+GitHub and Bitbucket. It does offer some GPU builds.
 
-## Github Actions
+## Travis CI
+Travis CI is free for public repos, but you must pay a monthly fee to use it with private
+projects. There is support for quite a few different languages. It allows you to generate
+a matrix of different build configurations that can be run concurrently. The plans are
+more expensive compared to the pay plans of Circle CI
+
+## Which One to Choose
+If the goal is to learn CI, then the free plans are the only plans that should be under
+consideration. Not all of my codes are public and including support for private repos would
+be nice. GitHub does allow you to change repos from public to private and vice versa,
+Bitbucket probably allows the same.
+
+The free plan from Travis CI does not support private repos. Developing in private is not
+necessarily required, but beneficial for some projects. Paying on the order of $50/month
+is too much for just trying to learn CI.
+
+The free plan from Circle CI can integrate with both GitHub and Bitbucket.
+It also includes GPU builds, but does not provide Mac OS builds. The credits (minutes)
+are adequate for personal development, but could become restrictive if multiple projects
+use the same account balance.
+
+GitHub actions provides more minutes as well as a single location for hosting code and
+accessing the CI service. It does provide Mac OS, but no GPU builds.
+
+## Configuration
+GitHub Actions seems to be the best way forward, so we focus on its configuration and
+setup.
 
 # Documentation
 This is best done using Sphinx (covered somewhere else, for now).
