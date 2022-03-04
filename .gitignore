@@ -1,3 +1,9 @@
 # build directories
 build/
 src/finite_difference.egg-info/
+
+# pyenv version file
+.python-version
+
+# tox temp directory
+.tox/

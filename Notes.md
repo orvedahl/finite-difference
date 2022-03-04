@@ -199,6 +199,8 @@ downloads and installs with no other input required. The question becomes how do
 package a configure file into a tarball that would be user-editable? One solution is
 to switch to custom environment variables. Place the relevant environment variables
 in a user-editable shell script and have the user source that script before installing.
+Then the `setup.py` file would extract the environment variable information, using the
+default values when necessary.
 
 Specifying the compiler used by `f2py` in the configuration file leads to some subtle
 difficulties. The default is GCC, but Intel is also supported. The only trick is that
@@ -602,10 +604,10 @@ export PYTEST_ADDOPTS=-p no:NAME
 where `NAME` is the name of the plugin to disable.
 
 ## Multiple Python Versions
-In order for tox to be able to run multiple versions of Python, those versions must
+In order to run multiple versions of Python, those versions must
 already be available on your system. [Pyenv](https://github.com/pyenv/pyenv) is a
 powerful tool to manage the multiple Python versions, it can even "load" a different
-version of Python depending on your current directory.
+version of Python automatically depending on your current directory.
 
 First install the Python dependencies for Fedora using:
 ```
@@ -665,7 +667,7 @@ Environment setup:
  * Set `PYENV_ROOT` to point to the git-cloned directory
  * Put `PYENV_ROOT/bin` at the beginning of the PATH
  * Initialize pyenv
- * Initialize pyenv-virtualenv
+ * Initialize pyenv-virtualenv plugin
 Assuming `.bash_profile` sources `.bashrc`, the above is accomplished by placing
 the following at the end of `~/.bashrc`:
 ```
@@ -740,9 +742,13 @@ configuration, greatly reducing its necessary configuration (a potentially very
 difficult task). Broadly speaking, tox will
  * Generate a series of virtual environments
  * Install dependencies for each environment
- * Run the setup commands
+ * Run the setup commands for the package
  * Return the results from each environment to the user
-This all takes place inside the `.tox` directory, so the repo does not become messy.
+The storage all takes place inside the `.tox` directory, so the repo does not become too
+messy.
+
+To install it, use pip: `pip install tox tox-pyenv`. The extra plugin allows tox to
+recognize pyenv environments when searching for the proper Python version.
 
 ### Configuration
 The magic happens in a configuration file. Tox will look in three locations,
@@ -777,24 +783,60 @@ that will be triggered as part of the run for a particular environment.
 Tox is not tied to `pytest`, it could easily be configured to run your own bash
 scripts or any arbitrary commands.
 
+The best idea is to define package requirements in the `setup.py` file as well as
+a `requirements.txt` file. This seems redundant, but the locations serve different
+purposes; one for installing and one for building/deploying the actual package. The
+`requirements.txt` file should be regarded as the necessary packages that any given
+Python environment needs to build and run the package. Then the `deps` line would
+simply read this file using: `deps = -rrequirements.txt`.
+
 To run tox, simply type `tox` from the same directory as the `tox.ini` file. It should
 build the environments and run the test commands.
 
-Simply change the above `tox.ini` file to read:
+The full `tox.ini` file is quite simple:
 ```
 [tox]
-envlist = py38,py39
-skipsdist = true
+envlist = 3.7.12,py38,py39,system
 
 [testenv]
-deps = pytest
-commands = pytest
+deps = -rrequirements.txt
+install_command =
+    pip install {opts} {packages}
+commands =
+    pytest tests/
+
+passenv =
+    PYTHONPATH
+    FD_USE_FORTRAN
+    FD_F90_COMPILER
+    FD_EXTRA_COMPILE_FLAGS
+    FD_LIBRARIES
+    FD_LIBRARY_DIRS
+    FD_INCLUDE_DIRS
 ```
-Now we leverage pyenv to make the requested Python versions available, using
-`pyenv local 3.8.12 3.9.10`. Now you can rerun `tox` and
-it will show the tests being run in the Python 3.8 environment and
-the same tests being run in the Python 3.9 environment. Of course each environment needs
-to have all the necessary
+Multiple Python versions are run by placing pyenv environment names in the `envlist`,
+although the tox standard ones can also be used (`py38`, `py39`) provided the Python
+executables can be found. To make multiple Python versions work in a single instance,
+they must all be found in the `PATH`.
+We can leverage pyenv to make the requested Python versions available, using
+`pyenv local system system 3.7.12 3.8.12 3.9.10`. The first entry is considered the
+default version to use. Now you can rerun `tox` and
+it will show the entire test suite being run in all four environments.
+
+The `install_command` is how the dependencies will be installed, this does not have
+to be a `pip` command, although that is the default. Above lists a generic `pip install`,
+but with the magic variables `{opts}` and `{packages}`, which are expanded by tox as
+necessary. The command can involve multiple separate sub commands, one per line.
+Similarly for the `commands` entry, each line represents a separate command that will
+be executed; these tests are quite simple in that they only use pip and pytest, but
+a custom command could be included, such as forcing a ML algorithm to train first
+by calling a python script.
+
+The `passenv` entry is a list of environment variables that will be passed from the
+"host" environment into each testing environment.
+
+The package does not need to be pre-built in order to run tox. Tox will end up building
+the package for each environment anyway.
 
 # Continuous Integration
 Continuous Integration (CI) automates the integration of code changes from multiple
