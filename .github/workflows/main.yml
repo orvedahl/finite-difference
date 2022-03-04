@@ -38,4 +38,4 @@ jobs: # what jobs will this action do
 
         # actually run the test using tox
       - name: Test with tox
-        run: tox -v
+        run: tox -r
