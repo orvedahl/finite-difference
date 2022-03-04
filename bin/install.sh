@@ -8,6 +8,8 @@ echo ""
 # uninstall using pip
 python3 -m pip -vv install --user .
 
-echo ""
-echo "Complete"
-echo ""
+if [ $? -eq 0 ]; then
+    echo ""
+    echo "Complete"
+    echo ""
+fi

@@ -120,8 +120,8 @@ Sometimes it is useful to provide system-dependent customization to the user wit
 requiring changes to the `setup.py` file, e.g., compiler-based choices including
 library directories and architecture-specific optimization flags. This is where
 configuration files come in handy. Installers can override some defaults in the
-`setup.py` by editing the config file. The configuration file will be called `fdiff.cfg`
-and might look like:
+`setup.py` by editing the config file.
+The configuration file will be called `fdiff.cfg` and might look like:
 ```
 [compiler-info]
 
@@ -189,11 +189,24 @@ with open(output_file, "w") as configfile:
 ```
 
 ### Some Pitfalls
+The configure file approach is perfectly fine if the user is expected to:
+  1. Clone the repo
+  2. Modify the config file
+  3. Manually install package with `pip install --user .`
+This has issues if the goal is to bundle the code into a package that gets distributed
+and then installed. Packaging involves essentially building a tarball that the user
+downloads and installs with no other input required. The question becomes how do you
+package a configure file into a tarball that would be user-editable? One solution is
+to switch to custom environment variables. Place the relevant environment variables
+in a user-editable shell script and have the user source that script before installing.
+
 Specifying the compiler used by `f2py` in the configuration file leads to some subtle
 difficulties. The default is GCC, but Intel is also supported. The only trick is that
 the compiler you want to use should be the first one found in the `PATH`.
 
-Currently, the NVIDIA HPC compiler does not work. The most robust way to change the
+Currently, the NVIDIA HPC compiler does not work.
+
+The most robust way to change the
 compiler that `f2py` uses is by changing the command line options using the
 `sys.argv.extend(...)` function within the `setup.py` file. Using the `f2py_options`
 argument does not work.
@@ -588,6 +601,132 @@ export PYTEST_ADDOPTS=-p no:NAME
 ```
 where `NAME` is the name of the plugin to disable.
 
+## Multiple Python Versions
+In order for tox to be able to run multiple versions of Python, those versions must
+already be available on your system. [Pyenv](https://github.com/pyenv/pyenv) is a
+powerful tool to manage the multiple Python versions, it can even "load" a different
+version of Python depending on your current directory.
+
+First install the Python dependencies for Fedora using:
+```
+su -c
+dnf install make gcc zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel \
+            openssl-devel tk-devel libffi-devel xz-devel
+```
+Even if Python is already installed, some of the devel packages might be missing.
+
+To install pyenv:
+ 1. Clone the repo
+ 2. Setup the shell environment and re-source/login/load the session
+ 3. Install Python build dependencies (above `dnf` command)
+ 4. Install new/old Python versions
+
+Upgrading pyenv:
+```
+cd $(pyenv root)
+git pull
+```
+or to upgrade to a specific release:
+```
+cd $(pyenv root)
+git fetch
+git tag
+git checkout v0.0.0
+```
+
+To disable/uninstall pyenv:
+ * Disable: remove the `pyenv init` command from the `.bashrc`. The `pyenv` command
+   will still be available and `python` will point to the system Python.
+ * Uninstall: remove all pyenv related commands from the `.bashrc`, then remove the
+   root directory, `rm -rf $(pyenv root)`
+
+Installing pyenv and the pyenv-virturalenv plugin:
+```
+cd /path/where/software/is/installed   # <-- call this directory my_PYENV_HOME
+git clone https://github.com/pyenv/pyenv.git
+
+# optionally, compile a dynamic Bash extension to speed up pyenv
+# if it fails, pyenv will still work normally:
+cd pyenv
+src/configure
+make -C src
+
+cd plugins
+git clone https://github.com/pyenv/pyenv-virtualenv.git
+```
+Simply cloning the repos and properly setting the environment variables is enough to
+install pyenv. If the Environment Modules (e.g., `module load`) package is used to
+load versions of Python, then pyenv may not work properly, since the magic of pyenv
+is managing the `PATH` and intercepting calls to `python` and `pip`. If the
+`module load python` command changes the `PATH`, then `python` and `pip` will never
+be redirected to pyenv.
+
+Environment setup:
+ * Set `PYENV_ROOT` to point to the git-cloned directory
+ * Put `PYENV_ROOT/bin` at the beginning of the PATH
+ * Initialize pyenv
+ * Initialize pyenv-virtualenv
+Assuming `.bash_profile` sources `.bashrc`, the above is accomplished by placing
+the following at the end of `~/.bashrc`:
+```
+export PYENV_ROOT=/path/where/software/is/installed/pyenv
+export PATH=$PYENV_ROOT/bin:$PATH
+eval "$(pyenv init -)"
+eval "$(pyenv init --path)"
+eval "$(pyenv virtualenv-init -)"
+```
+Be sure to place these commands at the bottom of the `.bashrc` so the `PATH` is set last
+and not overwritten by something else.
+
+### Pyenv Commands
+To list the available Python versions that can be installed: `pyenv install --list`
+
+Install a particular version: `pyenv install 3.8.12`, or `pyenv install -v <version>` to
+see more information. It may take a minute or two to complete.
+
+Uninstall: `pyenv uninstall 3.8.12`
+
+List installed versions: `pyenv versions`, the `*` indicates what version is active. To
+only show information about the currently active version: `pyenv version`.
+
+The default Python is the `system` one, but `which python` will point to the pyenv
+directory structure. Pyenv is intercepting the `python` call (due to the `PATH`) and
+redirecting it to use
+the system Python. Using `pyenv which python` will show the actual path being used,
+which does correspond to the expected system location.
+
+Switch the default: `pyenv global 3.8.12` or `pyenv global system`
+
+Set an application-specific Python version: `pyenv local 3.8.12`. This will create a file
+named `.python-version` in the current directory. Whenever pyenv is active, the file will
+automatically activate that version. It can be unset using `pyenv local --unset`.
+
+Pyenv follows a simple decision tree to determine how to set the Python version, in order:
+ 1. `pyenv shell <version>` which sets `$PYENV_VERSION` environment variable
+ 2. `pyenv local <version>` which sets the `.python-version` file
+ 3. `pyenv global <version>` which sets the global default in the `$PYENV_ROOT/version` file
+ 4. System Python
+Whatever pyenv finds first will be used. The local version is a top-down approach, i.e., the
+`.python-version` file will apply to current directory and any subdirectories.
+
+### Virtual Environments with Pyenv
+Pyenv handles multiple Python versions, the standard virtualenv/venv manages multiple
+virtual environments for a specific Python version. The pyenv-virtualenv combines the best
+of both worlds and manages multiple environments for multiple Python versions.
+
+Create an environment: `pyenv virtualenv <version> <name>`, where `<version>` is optional,
+but very strongly encouraged. The `<name>` is for you to keep them separate. A standard
+practice is to name the environment the same as the project for which it was built.
+
+Activate an environment: `pyenv local <name>`, this will generate/update the
+`.python-version` file, which means the environment will be automatically activated when
+you enter that directory.
+
+To make a second version of Python available in an already active environment, you can
+use the `local` command: `pyenv local <name> 3.9.10`. This will adjust the
+`.python-version` file to automatically activate the version associated with the
+`<name>` environment, but also make `python3.9` available as well.
+
 ## Tox
 Tox allows you to use multiple virtual environments to perform testing in Python, thus
 making it quite easy to:
@@ -641,20 +780,21 @@ scripts or any arbitrary commands.
 To run tox, simply type `tox` from the same directory as the `tox.ini` file. It should
 build the environments and run the test commands.
 
-#### Multiple Python Versions
 Simply change the above `tox.ini` file to read:
 ```
 [tox]
-envlist = py37,py27
+envlist = py38,py39
 skipsdist = true
 
 [testenv]
 deps = pytest
 commands = pytest
 ```
-and rerun `tox`, it will show the tests being run in the Python 3.7 environment and
-the same tests being run in the Python 2.7 environment.
-
+Now we leverage pyenv to make the requested Python versions available, using
+`pyenv local 3.8.12 3.9.10`. Now you can rerun `tox` and
+it will show the tests being run in the Python 3.8 environment and
+the same tests being run in the Python 3.9 environment. Of course each environment needs
+to have all the necessary
 
 # Continuous Integration
 Continuous Integration (CI) automates the integration of code changes from multiple

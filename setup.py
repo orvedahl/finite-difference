@@ -3,6 +3,7 @@ from numpy.distutils.core import setup, Extension
 
 import io
 import sys
+import os
 import os.path as osp
 from configparser import ConfigParser
 from glob import glob
@@ -73,21 +74,39 @@ options['py_modules'] = [osp.splitext(osp.basename(p))[0] for p in glob("src/**/
 options['python_requires'] = '>=3.6'
 options['install_requires'] = ['docopt',
                                'numpy>=1.19',
-                               'tox',
                                'pytest',
                                'pytest-cov',
                                'pytest-benchmark']
 
-# extract information from the configure file
-config = ConfigParser()
-config.read("fdiff.cfg")
-section = "compiler-info"
-build_f90 = config.getboolean(section, "INCLUDE_FORTRAN")
-compiler  = config.get(section, "F90_COMPILER")
-flags     = config.get(section, "EXTRA_COMPILE_FLAGS").split()
-libraries = config.get(section, "LIBRARIES").split()
-lib_dirs  = config.get(section, "LIBRARY_DIRS").split()
-includes  = config.get(section, "INCLUDE_DIRS").split()
+# define default options that can be changed by user
+defaults = {}
+defaults['build_f90'] = "true"
+defaults['compiler']  = "gcc" # GCC
+defaults['flags']     = "-O3"
+defaults['libraries'] = ""
+defaults['lib_dirs']  = ""
+defaults['includes']  = ""
+
+# extract user defined options
+build_f90 = os.getenv("FD_USE_FORTRAN", defaults["build_f90"])
+compiler  = os.getenv("FD_F90_COMPILER", defaults["compiler"])
+flags     = os.getenv("FD_EXTRA_COMPILE_FLAGS", defaults["flags"]).split()
+libraries = os.getenv("FD_LIBRARIES", defaults["libraries"]).split()
+lib_dirs  = os.getenv("FD_LIBRARY_DIRS", defaults["lib_dirs"]).split()
+includes  = os.getenv("FD_INCLUDE_DIRS", defaults["includes"]).split()
+
+# some options require a bit more processing
+if ("1" in build_f90 or "true" in build_f90.lower()):
+    build_f90 = True
+else:
+    build_f90 = False
+
+if ("gcc" in compiler.lower() or "gnu" in compiler.lower()): # convert to F2PY language
+    compiler = "gnu95"
+elif ("intel" in compiler.lower()):
+    compiler = "intelem"
+else:
+    raise ValueError("Unrecognized compiler = {}".format(compiler))
 
 lib_dirs = [process_path(d) for d in lib_dirs]
 includes = [process_path(d) for d in includes]
@@ -115,3 +134,4 @@ if (build_f90):
 
 # build/deploy/compile the package
 setup(**options)
+

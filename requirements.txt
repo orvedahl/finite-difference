@@ -1,0 +1,5 @@
+docopt
+numpy>=1.19
+pytest
+pytest-cov
+pytest-benchmark
