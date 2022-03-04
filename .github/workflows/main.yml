@@ -35,7 +35,9 @@ jobs: # what jobs will this action do
           python --version
           python -m pip install --upgrade pip
           pip install tox tox-gh-actions
+          python -c "import numpy; print('numpy version: {}'.format(numpy.__version__))"
 
         # actually run the test using tox
       - name: Test with tox
-        run: tox -r
+        run: |
+          tox -r
