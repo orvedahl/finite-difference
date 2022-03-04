@@ -34,7 +34,8 @@ jobs: # what jobs will this action do
         run: |
           python -m pip install --upgrade pip
           pip install tox tox-gh-actions
+          #pip install -r requirements.txt
 
         # actually run the test using tox
       - name: Test with tox
-        run: tox
+        run: tox -v
