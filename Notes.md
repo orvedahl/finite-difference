@@ -854,7 +854,8 @@ a single tox environment, but multiple tox environments could also be triggered.
 
 ### Notes
 Tox will bundle your package into a zip file (stored in the `.tox/dist/` directory) and
-each Python environment will use that zip file to install the package. So any files that
+each Python environment will use that zip file to install the package. This process
+is referred to as building the source distribution or `sdist`. So any files that
 were not placed into that zip file will be lost. Python has some default rules that
 determine what files are included, but you can manually adjust this using the `MAINFEST.in`
 file.
