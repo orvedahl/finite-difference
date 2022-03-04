@@ -34,7 +34,7 @@ jobs: # what jobs will this action do
         run: |
           python --version
           python -m pip install --upgrade pip
-          pip install tox tox-gh-actions
+          pip install tox tox-gh-actions numpy>=1.19
 
         # actually run the test using tox
       - name: Test with tox
