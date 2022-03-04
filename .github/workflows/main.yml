@@ -1,0 +1,40 @@
+# this name will appear in the README badge
+name: Workflow
+
+on: # when to trigger this action
+  - push
+  - pull_request
+
+jobs: # what jobs will this action do
+
+  test: # the first job
+
+    # it will run on a matrix of different OS
+    runs-on: ${{ matrix.os }}
+
+    # define the matrix entries using github-allowed values
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.7', '3.8', '3.9', '3.10']
+
+    # how to run this job
+    steps:
+        # checkout the repo
+      - uses: actions/checkout@v2
+
+        # build the particular Python version
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+        # install the necessary dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install tox tox-gh-actions
+
+        # actually run the test using tox
+      - name: Test with tox
+        run: tox

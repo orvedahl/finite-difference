@@ -813,6 +813,12 @@ passenv =
     FD_LIBRARIES
     FD_LIBRARY_DIRS
     FD_INCLUDE_DIRS
+
+[gh-actions]
+  3.7: 3.7.12
+  3.8: py38
+  3.9: py39
+  3.10: system
 ```
 Multiple Python versions are run by placing pyenv environment names in the `envlist`,
 although the tox standard ones can also be used (`py38`, `py39`) provided the Python
@@ -837,6 +843,14 @@ The `passenv` entry is a list of environment variables that will be passed from 
 
 The package does not need to be pre-built in order to run tox. Tox will end up building
 the package for each environment anyway.
+
+Tox really only works to test your package locally, but it can be integrated quite
+nicely into GitHub actions. GitHub actions mimics much of the machinery that tox uses
+(multiple Python versions, setting environment variables, etc.), so we just need to
+tell GitHub actions to reuse what was already written for tox. The last `[gh-actions]`
+section tells tox what to run when GitHub actions requests a particular environment.
+It is particularly simple, in that a single GitHub actions Python version runs only
+a single tox environment, but multiple tox environments could also be triggered.
 
 # Continuous Integration
 Continuous Integration (CI) automates the integration of code changes from multiple
@@ -888,7 +902,8 @@ accessing the CI service. It does provide Mac OS, but no GPU builds.
 
 ## Configuration
 GitHub Actions seems to be the best way forward, so we focus on its configuration and
-setup.
+setup. The configuration file lives in the `.github/workflows` directory, within a
+yml file.
 
 # Documentation
 This is best done using Sphinx (covered somewhere else, for now).

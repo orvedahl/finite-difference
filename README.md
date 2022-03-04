@@ -1,3 +1,5 @@
+![Tests](https://github.com/orvedahl/finite-difference/actions/workflows/main.yml/badge.svg)
+
 # Finite Differences
 
 A very simple finite difference package, whose main purpose is to explore/refine/learn
