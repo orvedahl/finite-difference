@@ -911,7 +911,58 @@ accessing the CI service. It does provide Mac OS, but no GPU builds.
 ## Configuration
 GitHub Actions seems to be the best way forward, so we focus on its configuration and
 setup. The configuration file lives in the `.github/workflows` directory, within a
-yml file.
+yml file:
+```
+# this name will appear in the README badge
+name: Workflow
+
+on: # when to trigger this action
+  - push
+  - pull_request
+
+jobs: # what jobs will this action do
+
+  test: # the first job
+
+    # it will run on a matrix of different OS
+    runs-on: ${{ matrix.os }}
+
+    # define the matrix entries using github-allowed values
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.8', '3.9', '3.10']
+
+    # how to run this job
+    steps:
+        # checkout the repo
+      - uses: actions/checkout@v2
+
+        # build the particular Python version
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+        # install the necessary dependencies, numpy is included here
+        # because the setup.py uses the numpy.distutils.core.Extension.
+        # tox will install the rest of the dependencies required to install,
+        # build, and actually run the package.
+      - name: Install dependencies
+        run: |
+          python --version
+          python -m pip install --upgrade pip
+          pip install tox tox-gh-actions numpy>=1.19
+
+        # actually run the test using tox
+      - name: Test with tox
+        run: |
+          tox -r
+```
+There are some "standard" actions, such as checking out the repo and building Python. The
+`- name` entries provide titles to the various steps that are seen on GiHub actions. Each
+`run: |` entry can hold one command per line, the actual tox command could be rewritten to
+use a single line as: `run: tox -r`.
 
 # Documentation
 This is best done using Sphinx (covered somewhere else, for now).

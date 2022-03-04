@@ -29,7 +29,7 @@ jobs: # what jobs will this action do
         with:
           python-version: ${{ matrix.python-version }}
 
-        # install the necessary dependencies
+        # install the necessary dependencies, numpy is required by setup.py
       - name: Install dependencies
         run: |
           python --version
@@ -39,4 +39,4 @@ jobs: # what jobs will this action do
         # actually run the test using tox
       - name: Test with tox
         run: |
-          tox -r -vv
+          tox -r
