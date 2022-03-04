@@ -852,6 +852,13 @@ section tells tox what to run when GitHub actions requests a particular environm
 It is particularly simple, in that a single GitHub actions Python version runs only
 a single tox environment, but multiple tox environments could also be triggered.
 
+### Notes
+Tox will bundle your package into a zip file (stored in the `.tox/dist/` directory) and
+each Python environment will use that zip file to install the package. So any files that
+were not placed into that zip file will be lost. Python has some default rules that
+determine what files are included, but you can manually adjust this using the `MAINFEST.in`
+file.
+
 # Continuous Integration
 Continuous Integration (CI) automates the integration of code changes from multiple
 developers into a single project. Usually, it involves buliding the code, documentation,
